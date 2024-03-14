@@ -5,17 +5,17 @@ import java.util.Arrays;
 import java.util.Scanner;
 
 public class SupplierAgent extends Agent {
-	
+
 	private double minCost;
 	private double maxCost;
-	
-	private int[] lastProposal ;
+
+	private int[] lastProposal;
 	private int lastProposalRound;
 
 	private int[][] costMatrix;
 
 	public SupplierAgent(File file, int minCost, int maxCost) throws FileNotFoundException {
-		
+
 		Scanner scanner = new Scanner(file);
 		int dim = scanner.nextInt();
 		costMatrix = new int[dim][dim];
@@ -26,35 +26,25 @@ public class SupplierAgent extends Agent {
 			}
 		}
 		scanner.close();
-		
-		this.minCost = (double)minCost;
-		this.maxCost = (double)maxCost;
-		
+
+		this.minCost = (double) minCost;
+		this.maxCost = (double) maxCost;
+
 		this.lastProposal = new int[costMatrix.length];
 		this.lastProposalRound = 0;
 	}
 
-	public boolean vote(int[] contract, int[] proposal) {
-		int costContract = evaluate(contract);
-		int costProposal = evaluate(proposal);
-		
-		double val = ((double)costProposal-minCost) / (maxCost-minCost);
-		double randomNumber = Math.random();
-		
-		return (randomNumber < val);
-	}
-	
-	public boolean voteScore(int[] proposal) {		
+	public boolean voteScore(int[] proposal) {
 		double val = getScore(proposal);
 		double randomNumber = Math.random();
-		
+
 		return (randomNumber < val);
 	}
-	
+
 	public double getScore(int[] proposal) {
 		int costProposal = evaluate(proposal);
-		
-		double val = ((double)costProposal-minCost) / (maxCost-minCost);
+
+		double val = ((double) costProposal - minCost) / (maxCost - minCost);
 		if (val < 0.0) {
 			System.out.println("ERROR, val is out of bounds: " + val);
 			val = 0.0;
@@ -64,18 +54,17 @@ public class SupplierAgent extends Agent {
 		}
 		return val;
 	}
-	
+
 	public boolean voteScoreBinary(int[] proposal) {
 		if (!Arrays.equals(proposal, lastProposal)) {
 			lastProposal = proposal;
 			lastProposalRound = 1;
-		}
-		else {
+		} else {
 			lastProposalRound += 1;
 		}
-						
+
 		double score = getScore(proposal);
-		return getValueAtIteration(score, lastProposalRound-1);
+		return getValueAtIteration(score, lastProposalRound - 1);
 	}
 
 	public int getContractSize() {
@@ -85,12 +74,11 @@ public class SupplierAgent extends Agent {
 	public void printUtility(int[] contract) {
 		System.out.print(evaluate(contract));
 	}
-	
+
 	public int getUtility(int[] contract) {
 		return evaluate(contract);
 	}
 
-	
 	private int evaluate(int[] contract) {
 
 		int result = 0;
@@ -102,22 +90,22 @@ public class SupplierAgent extends Agent {
 
 		return result;
 	}
-	
+
 	public boolean getValueAtIteration(double value, int targetIteration) {
-        double lowerBound = 0.0;
-        double upperBound = 1.0;
+		double lowerBound = 0.0;
+		double upperBound = 1.0;
 
-        for (int i = 0; i < targetIteration; i++) {
-            double mid = (lowerBound + upperBound) / 2.0;
+		for (int i = 0; i < targetIteration; i++) {
+			double mid = (lowerBound + upperBound) / 2.0;
 
-            if (value >= mid) {
-                lowerBound = mid; // Update lower bound for the next iteration
-            } else {
-                upperBound = mid; // Update upper bound for the next iteration
-            }
-        }
+			if (value >= mid) {
+				lowerBound = mid; // Update lower bound for the next iteration
+			} else {
+				upperBound = mid; // Update upper bound for the next iteration
+			}
+		}
 
-        return value >= (lowerBound + upperBound) / 2.0;
-    }
+		return value >= (lowerBound + upperBound) / 2.0;
+	}
 
 }

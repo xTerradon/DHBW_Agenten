@@ -9,20 +9,25 @@ import java.io.IOException;
 public class Verhandlung {
 
 	public static void main(String[] args) {
-		int maxRounds = 100000;
-		int voteAccuracy = 12;
+		boolean logging = false;
 
-		String proposalCreation = "switched"; // "switched" or "random"
+		int maxRounds = 100000;
+		int voteAccuracy = 8;
+
+		String proposalCreation = "3"; // random,2,3
+
+		int[] contract = getBestContract("O"); // "A","B","OVERALL"/"O"
 
 		// TODO: automatically set min/max cost parameters
-		int minCost = 100;
+		int minCost = 1;
 		int maxCost = 12000;
 
-		double[] costWeighting = { 1.0, 1000.0 };
+		double[] costWeighting = { 1.0, 1.0 };
 
 		long timestamp = System.currentTimeMillis();
+		System.out.println("Starting negotiation at " + timestamp);
 		String logFile = "logs/log_" + Long.toString(timestamp) + ".txt";
-		logParameters(logFile, minCost, maxCost, maxRounds, voteAccuracy);
+		if (logging) logParameters(logFile, minCost, maxCost, maxRounds, voteAccuracy);
 
 		String saveFile = "saves/saves_" + Long.toString(timestamp) + ".csv";
 		writeString(saveFile, "utilA;utilB;utilSum;contract");
@@ -40,32 +45,37 @@ public class Verhandlung {
 
 		// initialize baseline contract + score
 		assert med != null && agA != null && agB != null;
-		int[] contract = getBestContract("B"); // "A","B","OVERALL
+		
 
 		saveContract(saveFile, contract, agA.getUtility(contract), agB.getUtility(contract));
-		writeString(logFile, "Created new proposal:" + getStringFromArray(contract));
-		logExactScores(logFile, agA.getScore(contract), agB.getScore(contract));
+		if (logging) writeString(logFile, "Created new proposal:" + getStringFromArray(contract));
+		if (logging) logExactScores(logFile, agA.getScore(contract), agB.getScore(contract));
 
-		double[] scores = getBinaryScores(logFile, agA, agB, contract, 1000000, voteAccuracy);
+		double[] scores = getBinaryScores(logFile, agA, agB, contract, 1000000, voteAccuracy, logging);
 		double bestScore = scores[1] * costWeighting[0] + scores[3] * costWeighting[1];
 		printNewBest(0, agA, agB, contract, scores);
 
 		for (int round = 1; round < maxRounds; round++) {
+			// TODO: better contract creation (what if all switches are done? no randomness! No repitition!)
 			int[] proposal = med.getUniqueProposal(contract, proposalCreation);
 			// int[] proposal = med.constructRandomProposal(contract);
 
 			saveContract(saveFile, proposal, agA.getUtility(proposal), agB.getUtility(proposal));
 
-			writeString(logFile, "Created new proposal:" + getStringFromArray(proposal));
-			logExactScores(logFile, agA.getScore(proposal), agB.getScore(proposal));
+			if (logging) writeString(logFile, "Created new proposal:" + getStringFromArray(proposal));
+			if (logging) logExactScores(logFile, agA.getScore(proposal), agB.getScore(proposal));
 
-			scores = getBinaryScores(logFile, agA, agB, proposal, bestScore, voteAccuracy);
+			// scores = getBinaryScores(logFile, agA, agB, proposal, bestScore, voteAccuracy, logging);
 
-			if (scores[1] * costWeighting[0] + scores[3] * costWeighting[1] < bestScore) { // max scores are better than
-																							// best score
-				contract = proposal;
-				bestScore = scores[1] * costWeighting[0] + scores[3] * costWeighting[1];
-				printNewBest(round, agA, agB, contract, scores);
+			// if (scores[1] * costWeighting[0] + scores[3] * costWeighting[1] < bestScore) { // max scores are better than
+			// 																				// best score
+			// 	contract = proposal;
+			// 	bestScore = scores[1] * costWeighting[0] + scores[3] * costWeighting[1];
+			// 	printNewBest(round, agA, agB, contract, scores);
+			// }
+
+			if (round % 1000 == 0) {
+				System.out.print(".");
 			}
 		}
 
@@ -90,7 +100,7 @@ public class Verhandlung {
 	}
 
 	public static double[] getBinaryScores(String logFile, Agent agA, Agent agB, int[] proposal, double bestScore,
-			int voteAccuracy) {
+			int voteAccuracy, boolean logging) {
 		// get scores of both agents iteratively
 		// stop when score is guaranteed better / worse than bestScore
 		// [ there is a min + max bound of the score ]
@@ -128,7 +138,7 @@ public class Verhandlung {
 
 			scores = new double[] { minScoreA, maxScoreA, minScoreB, maxScoreB };
 			ScoredContract scoredContract = new ScoredContract(proposal, scores);
-			logRound(logFile, round, scoredContract);
+			if (logging) logRound(logFile, round, scoredContract);
 
 		}
 
@@ -198,16 +208,16 @@ public class Verhandlung {
 	}
 
 	public static int[] getArrayFromString(String input) {
-        String[] parts = input.replace("[", "").replace("]","").split(",");
-        int[] result = new int[parts.length];
+		String[] parts = input.replace("[", "").replace("]", "").split(",");
+		int[] result = new int[parts.length];
 
-        // Convert each string element to int
-        for (int i = 0; i < parts.length; i++) {
-            result[i] = Integer.parseInt(parts[i].trim());
-        }
+		// Convert each string element to int
+		for (int i = 0; i < parts.length; i++) {
+			result[i] = Integer.parseInt(parts[i].trim());
+		}
 
-        return result;
-    }
+		return result;
+	}
 
 	public static int[] getBestContract(String scoring) {
 		assert (scoring == "A" || scoring == "B" || scoring == "OVERALL");
@@ -221,17 +231,15 @@ public class Verhandlung {
 			String line;
 			br.readLine(); // skip header
 			while ((line = br.readLine()) != null) {
-				//System.out.println(line);
+				// System.out.println(line);
 				String[] row = line.split(";");
 				int data = 1_000_000;
 
 				if (scoring == "A") {
 					data = Integer.parseInt(row[0]);
-				}
-				else if (scoring == "B") {
+				} else if (scoring == "B") {
 					data = Integer.parseInt(row[1]);
-				}
-				else if (scoring == "OVERALL") {
+				} else if (scoring == "OVERALL" || scoring == "O") {
 					data = Integer.parseInt(row[2]);
 				}
 
