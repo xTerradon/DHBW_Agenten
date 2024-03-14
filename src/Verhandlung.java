@@ -164,12 +164,13 @@ public class Verhandlung {
 	    }
 		
 		public static void logParameters(String fileName, int minCost, int maxCost, int maxRounds, int voteAccuracy) {
-			writeString(fileName, "--- PARAMETERS ---");
-			writeString(fileName, "COST: " + minCost + " -> " + maxCost);
-			writeString(fileName, "MAX ROUNDS: " + maxRounds);
-			writeString(fileName, "VOTE ACCURACY: " + voteAccuracy);
-			writeString(fileName, "--- PARAMETERS ---");
-			writeString(fileName, "");
+			String s = "--- PARAMETERS ---\n" + 
+						"COST: " + minCost + " -> " + maxCost + "\n" + 
+						"MAX ROUNDS: " + maxRounds + "\n" + 
+						"VOTE ACCURACY: " + voteAccuracy + "\n" + 
+						"--- PARAMETERS ---\n" + 
+						"\n";
+			writeString(fileName, s);
 	    }
 		
 		public static void logExactScores(String fileName, double scoreA, double scoreB) {
