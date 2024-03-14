@@ -8,17 +8,21 @@ public class Verhandlung {
 	
 	
 		public static void main(String[] args) {
-			int maxRounds = 100;
-			int voteAccuracy = 8;
+			int maxRounds = 100000;
+			int voteAccuracy = 12;
+
+			String proposalCreation = "switched"; // "switched" or "random"
 			
 			// TODO: automatically set min/max cost parameters
-			int minCost = 2500;
+			int minCost = 100;
 			int maxCost = 12000;
 			
 			long timestamp = System.currentTimeMillis();
-			String fileName = "logs/log_" + Long.toString(timestamp) + ".txt";
-			
-			logParameters(fileName, minCost, maxCost, maxRounds, voteAccuracy);
+			String logFile = "logs/log_" + Long.toString(timestamp) + ".txt";
+			logParameters(logFile, minCost, maxCost, maxRounds, voteAccuracy);
+
+			String saveFile = "saves/saves_"+ Long.toString(timestamp) + ".csv";
+			writeString(saveFile, "utilA;utilB;utilSum;contract");
 			
 			Mediator med = null;
 			Agent agA = null, agB = null;
@@ -35,34 +39,34 @@ public class Verhandlung {
 			// initialize baseline contract + score
 			assert med != null && agA != null && agB != null;
 			int[] contract = med.initContract();
-			double[] initScores = getBinaryScores(fileName, agA, agB, contract, 10.0, voteAccuracy);
-			double bestScore = initScores[1] + initScores[3];
+			double bestScore = 10;
+
+			// manually put in start contract here
+			contract = new int[]{};
+			
 
 				
-			//Verhandlung starten	
-			for(int round=1;round<maxRounds;round++) {					//Mediator				
-				ScoredContract scoredContract = oneRound(fileName, med, contract, agA, agB, bestScore, voteAccuracy, round);
-				double[] scores = scoredContract.getScores();
+			for(int round=1;round<maxRounds;round++) {			
+				int[] proposal = med.getUniqueProposal(contract, proposalCreation);	
+				// int[] proposal = med.constructRandomProposal(contract);
+
+				saveContract(saveFile, proposal, agA.getUtility(proposal), agB.getUtility(proposal));
+				
+				writeString(logFile, "Created new proposal:" + getArrayString(proposal));
+				logExactScores(logFile, agA.getScore(proposal), agB.getScore(proposal));
+				
+				double[] scores = getBinaryScores(logFile, agA, agB, proposal, bestScore, voteAccuracy);	
 				
 				if (scores[1] + scores[3] < bestScore) { // max scores are better than best score
-					contract = scoredContract.getContract();
+					contract = proposal;
 					bestScore = scores[1] + scores[3];
-					printNewBest(round, agA, agB, scoredContract);
+					printNewBest(round, agA, agB, proposal, scores);
 				}
 			}
+
+			System.out.println("DONE");
 		}
 		
-		public static ScoredContract oneRound(String fileName, Mediator med, int[] contract, Agent agA, Agent agB, double bestScore, int voteAccuracy, int round) {
-			int[] proposal = med.constructSwitchedProposal(contract);	
-//			int[] proposal = med.constructRandomProposal(contract);
-			
-			writeString(fileName, "Created new proposal:" + proposal.toString());
-			logExactScores(fileName, agA.getScore(proposal), agB.getScore(proposal));
-			
-			double[] scores = getBinaryScores(fileName, agA, agB, proposal, bestScore, voteAccuracy);	
-				
-			return new ScoredContract(proposal, scores);
-		}
 		
 		public static int[] getVotes(Agent agA, Agent agB, int[] proposal, int maxVoteRound) {
 			int voteRound;
@@ -81,7 +85,7 @@ public class Verhandlung {
 			return scores;
 		}
 		
-		public static double[] getBinaryScores(String fileName, Agent agA, Agent agB, int[] proposal, double bestScore, int voteAccuracy) {
+		public static double[] getBinaryScores(String logFile, Agent agA, Agent agB, int[] proposal, double bestScore, int voteAccuracy) {
 			// get scores of both agents iteratively
 			// stop when score is guaranteed better / worse than bestScore
 			// [ there is a min + max bound of the score ]
@@ -120,17 +124,14 @@ public class Verhandlung {
 				
 				scores = new double[]{minScoreA, maxScoreA, minScoreB, maxScoreB};
 				ScoredContract scoredContract = new ScoredContract(proposal, scores);
-				logRound(fileName, round, scoredContract);
+				logRound(logFile, round, scoredContract);
 				
 			}
 			
 			return scores;
 		}
 		
-		public static void printNewBest(int round, Agent agA, Agent agB, ScoredContract scoredContract) {
-			int[] contract = scoredContract.getContract();
-			double[] scores = scoredContract.getScores();
-			
+		public static void printNewBest(int round, Agent agA, Agent agB, int[] contract, double[] scores) {			
 			System.out.println("NEW BEST CONTRACT IN ROUND " + round);
 			System.out.println("ACTUAL SCORES    | A: " + String.format("%.6f", agA.getScore(contract)) + " | B: " + String.format("%.6f", agB.getScore(contract)));
 			System.out.println(
@@ -144,9 +145,9 @@ public class Verhandlung {
 			System.out.println();
 		}	
 		
-		public static void writeString(String fileName, String text) {
+		public static void writeString(String logFile, String text) {
 			try {
-	            FileWriter fw = new FileWriter(fileName, true);
+	            FileWriter fw = new FileWriter(logFile, true);
 	            BufferedWriter bw = new BufferedWriter(fw);
 
 	            bw.write(text);
@@ -158,22 +159,34 @@ public class Verhandlung {
 	            e.printStackTrace();
 	        }
 		}
-		
-		public static void logRound(String fileName, int round, ScoredContract scoredContract) {
-	        writeString(fileName, "ROUND " + round + " : " + scoredContract.getString());
+		public static void logRound(String logFile, int round, ScoredContract scoredContract) {
+	        writeString(logFile, "ROUND " + round + " : " + scoredContract.getString());
 	    }
 		
-		public static void logParameters(String fileName, int minCost, int maxCost, int maxRounds, int voteAccuracy) {
+		public static void logParameters(String logFile, int minCost, int maxCost, int maxRounds, int voteAccuracy) {
 			String s = "--- PARAMETERS ---\n" + 
 						"COST: " + minCost + " -> " + maxCost + "\n" + 
 						"MAX ROUNDS: " + maxRounds + "\n" + 
 						"VOTE ACCURACY: " + voteAccuracy + "\n" + 
 						"--- PARAMETERS ---\n" + 
 						"\n";
-			writeString(fileName, s);
+			writeString(logFile, s);
 	    }
 		
-		public static void logExactScores(String fileName, double scoreA, double scoreB) {
-			writeString(fileName, "A:" + String.format("%.8f", scoreA) + " | B: " + String.format("%.8f", scoreB));
+		public static void logExactScores(String logFile, double scoreA, double scoreB) {
+			writeString(logFile, "A:" + String.format("%.8f", scoreA) + " | B: " + String.format("%.8f", scoreB));
+	    }
+
+		public static void saveContract(String saveFile, int[] contract, int utilA, int utilB) {
+			writeString(saveFile, utilA + ";" + utilB + ";" + (utilA + utilB) + ";" + getArrayString(contract));
+	    }
+
+		public static String getArrayString(int[] arr) {
+	        String s = "[";
+			for (int i = 0; i < arr.length; i++) {
+	            s += arr[i] + ",";
+	        }
+			s += "]";
+			return s;
 	    }
 }
