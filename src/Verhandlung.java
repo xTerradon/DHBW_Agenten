@@ -84,7 +84,7 @@ public class Verhandlung {
 				}
 			}
 
-			System.out.println(round + " CONTRACT " + lowestExplorationUtilContract.getUtilA() + " + " + lowestExplorationUtilContract.getUtilA() + " | EXPLORATION "  + lowestExploration);
+			System.out.println(round + " CONTRACT " + lowestExplorationUtilContract.getUtilA() + " + " + lowestExplorationUtilContract.getUtilb() + " | EXPLORATION "  + lowestExploration);
 			
 			while (i1 != contract.length) {
 				int proposal[] = null;
