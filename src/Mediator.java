@@ -6,6 +6,9 @@ import java.util.Random;
 
 public class Mediator {
 
+	int i1 = 0;
+	int i2 = 1;
+
 	int contractSize;
 	private List<int[]> contractHistory = new ArrayList<>();
 
@@ -22,6 +25,31 @@ public class Mediator {
 		for (int i = 0; i < contractSize; i++)
 			contract[i] = i;
 		return contract;
+	}
+
+	public int[] constructNextProposal(int[] contract) {
+		int[] proposal = new int[contract.length];
+		for (int i = 0; i < proposal.length; i++)
+			proposal[i] = contract[i];
+
+		int temp = proposal[i1];
+		proposal[i1] = proposal[i2];
+		proposal[i2] = temp;
+
+		i2++;
+		if (i2 == proposal.length) {
+			i2 = 0;
+		}
+		if (i2 == i1) {
+			i1++;
+			i2 += 2;
+			i2 %= proposal.length;
+		}
+		if (i1 == proposal.length) {
+			i1 = 0;
+		}
+
+		return proposal;
 	}
 
 	public int[] constructTwoSwitchedProposal(int[] contract) {
@@ -85,16 +113,20 @@ public class Mediator {
 	}
 
 	public int[] getUniqueProposal(int[] contract, String proposalCreation) {
-		assert proposalCreation.equals("random") || proposalCreation.equals("2") || proposalCreation.equals("3");
-		
+		assert proposalCreation.equals("random") || proposalCreation.equals("2") || proposalCreation.equals("3")
+				|| proposalCreation.equals("next");
+
 		int[] proposal = null;
 		if (proposalCreation.equals("random")) {
 			proposal = constructRandomProposal(contract);
 		} else if (proposalCreation.equals("2")) {
 			proposal = constructTwoSwitchedProposal(contract);
-		}
-		else if (proposalCreation.equals("3")) {
+		} else if (proposalCreation.equals("3")) {
 			proposal = constructThreeSwitchedProposal(contract);
+		} else if (proposalCreation.equals("next")) {
+			proposal = constructNextProposal(contract);
+			contractHistory.add(proposal);
+			return proposal;
 		}
 
 		if (checkExistence(proposal)) {

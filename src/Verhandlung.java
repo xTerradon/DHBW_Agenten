@@ -14,7 +14,7 @@ public class Verhandlung {
 		int maxRounds = 100000;
 		int voteAccuracy = 8;
 
-		String proposalCreation = "3"; // random,2,3
+		String proposalCreation = "next"; // random,2,3,next
 
 		int[] contract = getBestContract("O"); // "A","B","OVERALL"/"O"
 
