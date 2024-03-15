@@ -15,19 +15,10 @@ public class Verhandlung {
 	private static int i3 = 2;
 
 	public static void main(String[] args) {
-		List<UtilContract> contractHistory = loadFromCSV("saves/pareto.csv");
-		System.out.println(contractHistory);
-		System.out.println(contractHistory.size());
-
 		boolean logging = false;
 
 		int maxRounds = 10000;
 		int voteAccuracy = 16;
-
-		String proposalCreation = "next"; // random,2,3,next,next3
-
-		int[] contract = getBestContract("O"); // "A","B","OVERALL"/"O"
-		
 
 		// TODO: automatically set min/max cost parameters
 		int minCost = 1;
@@ -42,6 +33,11 @@ public class Verhandlung {
 
 		String saveFile = "saves/saves_" + Long.toString(timestamp) + ".csv";
 		writeString(saveFile, "utilA;utilB;utilSum;contract");
+
+		List<UtilContract> contractHistory = loadFromCSV("saves/pareto.csv");
+		System.out.println("Loaded " + contractHistory.size() + " contracts from file");
+		int[] contract = getBestContract("O"); // "A","B","OVERALL"/"O"
+
 
 		Mediator med = null;
 		Agent agA = null, agB = null;
@@ -63,36 +59,11 @@ public class Verhandlung {
 		double[] scores = getBinaryScores(logFile, agA, agB, contract, 1000000, voteAccuracy, logging);
 		double bestScore = scores[1] * costWeighting[0] + scores[3] * costWeighting[1];
 		// printNewBest(0, agA, agB, contract, scores);
-		runNegotiation(med, agA, agB, contract, bestCost, bestScore, maxRounds, proposalCreation, saveFile, logFile, logging, contractHistory);
+		runNegotiation(med, agA, agB, contract, bestCost, bestScore, maxRounds, saveFile, logFile, logging, contractHistory);
 	}
 
-	public static List<UtilContract> loadFromCSV(String filePath) {
-        List<UtilContract> contractList = new ArrayList<>();
-
-        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
-            String line;
-			br.readLine(); // skip header
-            while ((line = br.readLine()) != null) {
-                String[] parts = line.split(";");
-                if (parts.length == 5) { // Ensure correct format
-                    int utilA = Integer.parseInt(parts[0]);
-                    int utilB = Integer.parseInt(parts[1]);
-                    int utilSum = Integer.parseInt(parts[2]);
-                    int[] contract = getArrayFromString(parts[3]);
-                    contractList.add(new UtilContract(utilA, utilB, utilSum, contract, 1)); // Set explored to 1
-                } else {
-                    System.out.println("Invalid line: " + line);
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        return contractList;
-    }
-
 	public static void runNegotiation(Mediator med, Agent agA, Agent agB, int[] contract, int bestCost,
-			double bestScore, int maxRounds, String proposalCreation, String saveFile, String logFile, boolean logging,
+			double bestScore, int maxRounds, String saveFile, String logFile, boolean logging,
 			List<UtilContract> contractHistory) {
 
 		int[] lowestExplorationContract = contract;
@@ -453,5 +424,30 @@ public class Verhandlung {
             }
         }
         return newParetoElements;
+    }
+
+	public static List<UtilContract> loadFromCSV(String filePath) {
+        List<UtilContract> contractList = new ArrayList<>();
+
+        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+            String line;
+			br.readLine(); // skip header
+            while ((line = br.readLine()) != null) {
+                String[] parts = line.split(";");
+                if (parts.length == 5) { // Ensure correct format
+                    int utilA = Integer.parseInt(parts[0]);
+                    int utilB = Integer.parseInt(parts[1]);
+                    int utilSum = Integer.parseInt(parts[2]);
+                    int[] contract = getArrayFromString(parts[3]);
+                    contractList.add(new UtilContract(utilA, utilB, utilSum, contract, 1)); // Set explored to 1
+                } else {
+                    System.out.println("Invalid line: " + line);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return contractList;
     }
 }
