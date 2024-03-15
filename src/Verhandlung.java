@@ -17,6 +17,7 @@ public class Verhandlung {
 		String proposalCreation = "next"; // random,2,3,next
 
 		int[] contract = getBestContract("O"); // "A","B","OVERALL"/"O"
+		
 
 		// TODO: automatically set min/max cost parameters
 		int minCost = 1;
@@ -45,7 +46,7 @@ public class Verhandlung {
 
 		// initialize baseline contract + score
 		assert med != null && agA != null && agB != null;
-		
+		int bestCost = agA.getUtility(contract) + agB.getUtility(contract);
 
 		saveContract(saveFile, contract, agA.getUtility(contract), agB.getUtility(contract));
 		if (logging) writeString(logFile, "Created new proposal:" + getStringFromArray(contract));
@@ -56,11 +57,16 @@ public class Verhandlung {
 		printNewBest(0, agA, agB, contract, scores);
 
 		for (int round = 1; round < maxRounds; round++) {
-			// TODO: better contract creation (what if all switches are done? no randomness! No repitition!)
-			int[] proposal = med.getUniqueProposal(contract, proposalCreation);
+			int[] proposal = med.constructNextProposal(contract);
 			// int[] proposal = med.constructRandomProposal(contract);
 
 			saveContract(saveFile, proposal, agA.getUtility(proposal), agB.getUtility(proposal));
+			if (agA.getUtility(proposal)+agB.getUtility(proposal) < bestCost) {
+				bestCost = agA.getUtility(proposal)+agB.getUtility(proposal);
+				contract = proposal;
+				System.out.println("New best contract found: " + bestCost);
+				med.resetIndex();
+			}
 
 			if (logging) writeString(logFile, "Created new proposal:" + getStringFromArray(proposal));
 			if (logging) logExactScores(logFile, agA.getScore(proposal), agB.getScore(proposal));

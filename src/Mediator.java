@@ -27,6 +27,11 @@ public class Mediator {
 		return contract;
 	}
 
+	public void resetIndex() {
+		i1 = 0;
+		i2 = 1;
+	}
+
 	public int[] constructNextProposal(int[] contract) {
 		int[] proposal = new int[contract.length];
 		for (int i = 0; i < proposal.length; i++)
@@ -38,15 +43,11 @@ public class Mediator {
 
 		i2++;
 		if (i2 == proposal.length) {
-			i2 = 0;
-		}
-		if (i2 == i1) {
 			i1++;
-			i2 += 2;
-			i2 %= proposal.length;
+			i2 = Math.min((i1+1), proposal.length-1);
 		}
 		if (i1 == proposal.length) {
-			i1 = 0;
+			System.exit(0);
 		}
 
 		return proposal;
