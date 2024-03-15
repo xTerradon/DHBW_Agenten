@@ -8,6 +8,7 @@ public class Mediator {
 
 	int i1 = 0;
 	int i2 = 1;
+	int i3 = 2;
 
 	int contractSize;
 	private List<int[]> contractHistory = new ArrayList<>();
@@ -30,6 +31,7 @@ public class Mediator {
 	public void resetIndex() {
 		i1 = 0;
 		i2 = 1;
+		i3 = 2;
 	}
 
 	public int[] constructNextProposal(int[] contract) {
@@ -52,6 +54,37 @@ public class Mediator {
 
 		return proposal;
 	}
+
+	public int[] constructNextProposal3(int[] contract) {
+		int[] proposal = new int[contract.length];
+		for (int i = 0; i < proposal.length; i++)
+			proposal[i] = contract[i];
+
+		int temp = proposal[i1];
+		proposal[i1] = proposal[i2];
+		proposal[i2] = temp;
+
+		int temp2 = proposal[i2];
+		proposal[i2] = proposal[i3];
+		proposal[i3] = temp2;
+
+		i3++;
+		if (i3 == proposal.length) {
+			i2++;
+			i3 = Math.min((i2+1), proposal.length-1);
+		}
+		if (i2 == proposal.length) {
+			i1++;
+			i2 = Math.min((i1+1), proposal.length-1);
+			i3 = Math.min((i2+1), proposal.length-1);
+		}
+		if (i1 == proposal.length) {
+			System.exit(0);
+		}
+
+		return proposal;
+	}
+	
 
 	public int[] constructTwoSwitchedProposal(int[] contract) {
 		int[] proposal = new int[contract.length];

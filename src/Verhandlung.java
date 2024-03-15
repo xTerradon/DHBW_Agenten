@@ -57,7 +57,7 @@ public class Verhandlung {
 		printNewBest(0, agA, agB, contract, scores);
 
 		for (int round = 1; round < maxRounds; round++) {
-			int[] proposal = med.constructNextProposal(contract);
+			int[] proposal = med.constructNextProposal3(contract);
 			// int[] proposal = med.constructRandomProposal(contract);
 
 			saveContract(saveFile, proposal, agA.getUtility(proposal), agB.getUtility(proposal));
