@@ -159,6 +159,10 @@ public class Mediator {
 			proposal = constructThreeSwitchedProposal(contract);
 		} else if (proposalCreation.equals("next")) {
 			proposal = constructNextProposal(contract);
+			return proposal;
+		}
+		else if (proposalCreation.equals("next3")) {
+			proposal = constructNextProposal3(contract);
 			contractHistory.add(proposal);
 			return proposal;
 		}
