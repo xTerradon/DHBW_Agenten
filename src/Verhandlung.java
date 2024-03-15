@@ -21,7 +21,7 @@ public class Verhandlung {
 
 		boolean logging = false;
 
-		int maxRounds = 10000;
+		int maxRounds = 10;
 		int voteAccuracy = 16;
 
 		String proposalCreation = "next"; // random,2,3,next,next3
@@ -56,10 +56,6 @@ public class Verhandlung {
 
 		assert med != null && agA != null && agB != null;
 		int bestCost = agA.getUtility(contract) + agB.getUtility(contract);
-
-		saveContract(saveFile, contract, agA.getUtility(contract), agB.getUtility(contract));
-		contractHistory.add(new UtilContract(agA.getUtility(contract), agB.getUtility(contract),
-				agA.getUtility(contract) + agB.getUtility(contract), contract));
 
 		if (logging) writeString(logFile, "Created new proposal:" + getStringFromArray(contract));
 		if (logging) logExactScores(logFile, agA.getScore(contract), agB.getScore(contract));
