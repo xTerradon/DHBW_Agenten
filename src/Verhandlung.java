@@ -21,8 +21,8 @@ public class Verhandlung {
 
 		boolean logging = false;
 
-		int maxRounds = 0;
-		int voteAccuracy = 8;
+		int maxRounds = 1000;
+		int voteAccuracy = 16;
 
 		String proposalCreation = "next"; // random,2,3,next,next3
 
@@ -112,6 +112,7 @@ public class Verhandlung {
 					lowestExplorationContract = c.getContract();
 					lowestExplorationIndex = contractHistory.indexOf(c);
 					resetIndex();
+					System.out.println("Resetted index");
 				}
 			}
 
@@ -431,6 +432,7 @@ public class Verhandlung {
         for (UtilContract element : paretoElements) {
             boolean isPareto = true;
             for (UtilContract otherElement : paretoElements) {
+				if (element == otherElement) continue;
                 if (element.getUtilA() >= otherElement.getUtilA() && element.getUtilB() >= otherElement.getUtilB()) {
                     isPareto = false;
                     break;
