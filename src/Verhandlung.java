@@ -21,7 +21,7 @@ public class Verhandlung {
 
 		boolean logging = false;
 
-		int maxRounds = 1000;
+		int maxRounds = 10000;
 		int voteAccuracy = 16;
 
 		String proposalCreation = "next"; // random,2,3,next,next3
@@ -116,7 +116,7 @@ public class Verhandlung {
 				}
 			}
 
-			System.out.println("Working on contract " + getStringFromArray(lowestExplorationContract) + " with exploration " + lowestExploration);
+			System.out.println(round + " Working on contract " + getStringFromArray(lowestExplorationContract) + " with exploration " + lowestExploration);
 			
 			while (i1 != contract.length) {
 				int proposal[] = null;
@@ -145,7 +145,9 @@ public class Verhandlung {
 				if (isParetoEfficient(contractHistory, newContract)) {
 					saveContract(saveFile, proposal, agA.getUtility(proposal), agB.getUtility(proposal));
 					contractHistory.add(newContract);
+					UtilContract el = contractHistory.get(lowestExplorationIndex);
 					contractHistory = removeNonPareto(contractHistory);
+					lowestExplorationIndex = contractHistory.indexOf(el);
 					System.out.println("Pareto efficient contract found: " + utilA + " + " + utilB + " = " + (utilA + utilB));
 					System.out.println("Pareto efficient contracts: " + contractHistory.size());
 
@@ -168,9 +170,10 @@ public class Verhandlung {
 				if (logging) writeString(logFile, "Created new proposal:" + getStringFromArray(proposal));
 				if (logging) logExactScores(logFile, agA.getScore(proposal), agB.getScore(proposal));
 				
+				contractHistory.get(lowestExplorationIndex).setExplored(lowestExploration + 1);
 			}
 
-			contractHistory.get(lowestExplorationIndex).setExplored(lowestExploration + 1);
+			
 
 			// if eploration depth is reached, update exloration
 			// check exploration of contracts and choose the lowest exploration / the lowest utilSum
@@ -196,7 +199,6 @@ public class Verhandlung {
 			}
 		}
 
-		saveContractHistory(saveFile, contractHistory);
 		System.out.println("DONE");
 	}
 
