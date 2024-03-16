@@ -1,24 +1,14 @@
 public class UtilContract {
     private int utilA;
     private int utilB;
-    private int utilSum;
     private int[] contract;
     private int explored;
 
-    public UtilContract(int utilA, int utilB, int utilSum, int[] contract, int explored) {
+    public UtilContract(int utilA, int utilB, int[] contract, int explored) {
         this.utilA = utilA;
         this.utilB = utilB;
-        this.utilSum = utilSum;
         this.contract = contract;
         this.explored = explored;
-    }
-
-    public UtilContract(int utilA, int utilB, int utilSum, int[] contract) {
-        this.utilA = utilA;
-        this.utilB = utilB;
-        this.utilSum = utilSum;
-        this.contract = contract;
-        this.explored = 1;
     }
 
 
@@ -37,14 +27,6 @@ public class UtilContract {
 
     public void setUtilB(int utilB) {
         this.utilB = utilB;
-    }
-
-    public int getUtilSum() {
-        return utilSum;
-    }
-
-    public void setUtilSum(int utilSum) {
-        this.utilSum = utilSum;
     }
 
     public int[] getContract() {

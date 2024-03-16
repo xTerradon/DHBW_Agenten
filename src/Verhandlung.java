@@ -10,37 +10,43 @@ import java.util.List;
 
 public class Verhandlung {
 
+	private static boolean useScoring = true;
+
+	private static boolean logging = false;
+	private static int numberOfRounds = 10;
+
+	// --- scoring parameters ---
+	private static int minCost = 1;
+	private static int maxCost = 100000; // TODO: automatically set maxCost
+	private static int voteAccuracy = 16;
+	// --- scoring parameters ---
+
+	private static String logFile;
+	private static String saveFile;
+
+	private static Mediator med;
+	private static Agent agA, agB;
+
+	private static List<UtilContract> utilHistory;
+	private static List<ScoreContract> scoreHistory;
+
+	// initialize exploration indices
 	private static int i1 = 0;
 	private static int i2 = 1;
 	private static int i3 = 2;
 
 	public static void main(String[] args) {
-		boolean logging = false;
-
-		int maxRounds = 10000;
-		int voteAccuracy = 16;
-
-		// TODO: automatically set min/max cost parameters
-		int minCost = 1;
-		int maxCost = 12000;
-
-		double[] costWeighting = { 1.0, 1.0 };
 
 		long timestamp = System.currentTimeMillis();
 		System.out.println("Starting negotiation at " + timestamp);
-		String logFile = "logs/log_" + Long.toString(timestamp) + ".txt";
-		if (logging) logParameters(logFile, minCost, maxCost, maxRounds, voteAccuracy);
 
-		String saveFile = "saves/saves_" + Long.toString(timestamp) + ".csv";
+		logFile = "logs/log_" + Long.toString(timestamp) + ".txt";
+		if (logging) logParameters(logFile, minCost, maxCost, numberOfRounds, voteAccuracy);
+
+		saveFile = "saves/saves_" + Long.toString(timestamp) + ".csv";
 		writeString(saveFile, "utilA;utilB;utilSum;contract");
 
-		List<UtilContract> contractHistory = loadFromCSV("saves/pareto.csv");
-		System.out.println("Loaded " + contractHistory.size() + " contracts from file");
-		int[] contract = getBestContract("O"); // "A","B","OVERALL"/"O"
-
-
-		Mediator med = null;
-		Agent agA = null, agB = null;
+		// --- setup Agents and Mediator ---
 		try {
 			agA = new SupplierAgent(new File("data/daten3ASupplier_200.txt"), minCost, maxCost);
 			agB = new CustomerAgent(new File("data/daten4BCustomer_200_5.txt"), minCost, maxCost);
@@ -49,137 +55,170 @@ public class Verhandlung {
 		} catch (FileNotFoundException e) {
 			System.out.println(e.getMessage());
 		}
-
 		assert med != null && agA != null && agB != null;
-		int bestCost = agA.getUtility(contract) + agB.getUtility(contract);
+		// --- setup Agents and Mediator ---
 
-		if (logging) writeString(logFile, "Created new proposal:" + getStringFromArray(contract));
-		if (logging) logExactScores(logFile, agA.getScore(contract), agB.getScore(contract));
+		utilHistory = loadFromCSV("saves/pareto.csv");
+		System.out.println("Loaded " + utilHistory.size() + " contracts from file");
 
-		double[] scores = getBinaryScores(logFile, agA, agB, contract, 1000000, voteAccuracy, logging);
-		double bestScore = scores[1] * costWeighting[0] + scores[3] * costWeighting[1];
-		// printNewBest(0, agA, agB, contract, scores);
-		runNegotiation(med, agA, agB, contract, bestCost, bestScore, maxRounds, saveFile, logFile, logging, contractHistory);
+		if (utilHistory.size() == 0) {
+			System.out.println("No contracts found. Starting from [1,2,3,...,197,198,199]");
+			int[] startingContract = java.util.stream.IntStream.range(0, 200).toArray();
+			utilHistory.add(new UtilContract(agA.getUtility(startingContract), agB.getUtility(startingContract), startingContract, 1));
+		}
+
+		scoreHistory = new ArrayList<>();
+		for (UtilContract uc : utilHistory) {
+			double[] scores = getBinaryScores(uc.getContract());
+			scoreHistory.add(new ScoreContract(scores[1], scores[3], uc.getContract(), uc.getExplored()));
+		}
+
+		if (useScoring) {
+			System.out.println("Using scoring method (slower)");
+			runNegotiationScoring();
+		} else {
+			System.out.println("Using util method (faster)");
+			runNegotiationUtil();
+		}
 	}
 
-	public static void runNegotiation(Mediator med, Agent agA, Agent agB, int[] contract, int bestCost,
-			double bestScore, int maxRounds, String saveFile, String logFile, boolean logging,
-			List<UtilContract> contractHistory) {
+	public static void runNegotiationUtil() {
 
-		int[] lowestExplorationContract = contract;
+		for (int round = 1; round < numberOfRounds; round++) {
 
-		for (int round = 1; round < maxRounds; round++) {
-
-			int lowestExploration = 999_999;
-			int lowestExplorationIndex = 0;
-			UtilContract lowestExplorationUtilContract = null;
-
-			for (UtilContract c : contractHistory) {
-				if (c.getExplored() < lowestExploration) {
-					lowestExploration = c.getExplored();
-					lowestExplorationContract = c.getContract();
-					lowestExplorationIndex = contractHistory.indexOf(c);
-					lowestExplorationUtilContract = c;
-					resetIndex();
+			UtilContract utilContract = utilHistory.get(0);
+			for (UtilContract c : utilHistory) {
+				if (c.getExplored() < utilContract.getExplored()) {
+					utilContract = c;
 				}
 			}
+			resetIndex();
 
-			System.out.println(round + " CONTRACT " + lowestExplorationUtilContract.getUtilA() + " + " + lowestExplorationUtilContract.getUtilB() + " | EXPLORATION "  + lowestExploration);
+			System.out.println(round + " CONTRACT " + utilContract.getUtilA() + " + " + utilContract.getUtilB() + " | EXPLORATION "  + utilContract.getExplored());
 			
-			while (i1 != contract.length) {
+			while (i1 != utilContract.getContract().length) {
 				int proposal[] = null;
-				
-				if (lowestExploration == 0) {
-					System.out.println("Found exploration 0");
-					break;
+				int exploration = utilContract.getExplored();
+				if (exploration == 1) {
+					proposal = constructNextProposal(utilContract.getContract());
 				}
-				else if (lowestExploration == 1) {
-					proposal = constructNextProposal(lowestExplorationContract);
-				}
-				else if (lowestExploration == 2) {
-					proposal = constructNextProposal3(lowestExplorationContract);
+				else if (exploration == 2) {
+					proposal = constructNextProposal3(utilContract.getContract());
 				}
 				else {
-					System.out.println("Reached exploration " + lowestExploration);
+					System.out.println("Reached exploration " + exploration);
 					break;
 				}
 				assert proposal != null;
 				int utilA = agA.getUtility(proposal);
 				int utilB = agB.getUtility(proposal);
 				
-				UtilContract newContract = new UtilContract(utilA, utilB, utilA + utilB, proposal);
+				UtilContract newUtilContract = new UtilContract(utilA, utilB, proposal, 1);
 				
 
-				if (isParetoEfficient(contractHistory, newContract)) {
-					System.out.print("NEW CONTRACT " + utilA + " + " + utilB + " = " + (utilA + utilB) + " [" + contractHistory.size() + "]");
+				if (isParetoEfficientUtil(newUtilContract)) {
+					System.out.print("NEW CONTRACT " + utilA + " + " + utilB + " = " + (utilA + utilB) + " [" + utilHistory.size() + "]");
 					saveContract(saveFile, proposal, utilA, utilB);
-					contractHistory.add(newContract);
-
-					UtilContract el = contractHistory.get(lowestExplorationIndex);
-					contractHistory = removeNonPareto(contractHistory);
-					lowestExplorationIndex = contractHistory.indexOf(el);
+					utilHistory.add(newUtilContract);
+					utilHistory = removeNonParetoUtil();
 					
 
-					if (lowestExplorationIndex == -1) {
-						System.out.println(". Aborting old contract");
+					if (isParetoEfficientOrSameUtil(utilContract)) {
+						System.out.println(". Aborting");
+						break;
+					}
+					else {
+						System.out.println(". Continuing...");
+					}
+				}
+	
+				if (logging) writeString(logFile, "Created new proposal:" + getStringFromArray(proposal));
+				if (logging) logExactScores(logFile, agA.getScore(proposal), agB.getScore(proposal));
+				
+			}
+
+			utilHistory.get(utilHistory.indexOf(utilContract)).setExplored(utilContract.getExplored() + 1);
+
+		}
+
+		System.out.println("DONE");
+	}
+
+	public static void runNegotiationScoring() {
+
+		for (int round = 1; round < numberOfRounds; round++) {
+
+			ScoreContract scoreContract = scoreHistory.get(0);
+			for (ScoreContract c : scoreHistory) {
+				if (c.getExplored() < scoreContract.getExplored()) {
+					scoreContract = c;
+				}
+			}
+			resetIndex();
+
+			System.out.println(round + " CONTRACT " + scoreContract.getScoreA() + " + " + scoreContract.getScoreB() + " | EXPLORATION "  + scoreContract.getExplored());
+			
+			while (i1 != scoreContract.getContract().length) {
+				int proposal[] = null;
+				int exploration = scoreContract.getExplored();
+				if (exploration == 0) {
+					System.out.println("Found exploration 0");
+					break;
+				}
+				else if (exploration == 1) {
+					proposal = constructNextProposal(scoreContract.getContract());
+				}
+				else if (exploration == 2) {
+					proposal = constructNextProposal3(scoreContract.getContract());
+				}
+				else {
+					System.out.println("Reached exploration " + exploration);
+					break;
+				}
+				assert proposal != null;
+				
+				double scores[] = getBinaryScores(proposal);
+				
+				
+				ScoreContract newScoreContract = new ScoreContract(scores[1], scores[3], proposal, 1);
+				
+
+				if (isParetoEfficientScore(newScoreContract)) {
+					System.out.print("NEW CONTRACT " + scores[1] + " + " + scores[3] + " = " + (scores[1] + scores[3]) + " [" + scoreHistory.size() + "]");
+
+					saveContract(saveFile, proposal, agA.getUtility(proposal), agB.getUtility(proposal));
+					scoreHistory.add(newScoreContract);
+					scoreHistory = removeNonParetoScore();
+					
+
+					if (scoreHistory.indexOf(scoreContract) == -1) {
+						System.out.println(". Aborting old contract"); // contract no longer pareto-efficient
 						break;
 					}
 					else {
 						System.out.println(". Continuing old contract");
 					}
 				}
-				
-				// if (agA.getUtility(proposal) + agB.getUtility(proposal) < bestCost) {
-				// 	bestCost = agA.getUtility(proposal) + agB.getUtility(proposal);
-				// 	contract = proposal;
-				// 	System.out.println("New best contract found: " + bestCost);
-				// 	med.resetIndex();
-				// }
 	
 				if (logging) writeString(logFile, "Created new proposal:" + getStringFromArray(proposal));
 				if (logging) logExactScores(logFile, agA.getScore(proposal), agB.getScore(proposal));
 				
-				contractHistory.get(lowestExplorationIndex).setExplored(lowestExploration + 1);
-				
 			}
 
-			
+			scoreHistory.get(scoreHistory.indexOf(scoreContract)).setExplored(scoreContract.getExplored() + 1);
 
-			// if eploration depth is reached, update exloration
-			// check exploration of contracts and choose the lowest exploration / the lowest utilSum
-			// reset index
-
-			
-
-			
-
-			// scores = getBinaryScores(logFile, agA, agB, proposal, bestScore,
-			// voteAccuracy, logging);
-
-			// if (scores[1] * costWeighting[0] + scores[3] * costWeighting[1] < bestScore)
-			// { // max scores are better than
-			// // best score
-			// contract = proposal;
-			// bestScore = scores[1] * costWeighting[0] + scores[3] * costWeighting[1];
-			// printNewBest(round, agA, agB, contract, scores);
-			// }
-
-			if (round % 1000 == 0) {
-				System.out.print(".");
-			}
 		}
 
 		System.out.println("DONE");
 	}
 
-	public static void saveContractHistory(String saveFile, List<UtilContract> contractHistory) {
-		for (UtilContract contract : contractHistory) {
+	public static void saveHistory(String saveFile) {
+		for (UtilContract contract : utilHistory) {
 			saveContract(saveFile, contract.getContract(), contract.getUtilA(), contract.getUtilB());
 		}
 	}
 
-	public static double[] getBinaryScores(String logFile, Agent agA, Agent agB, int[] proposal, double bestScore,
-			int voteAccuracy, boolean logging) {
+	public static double[] getBinaryScores(int[] proposal) {
 		// get scores of both agents iteratively
 		// stop when score is guaranteed better / worse than bestScore
 		// [ there is a min + max bound of the score ]
@@ -193,7 +232,7 @@ public class Verhandlung {
 		double maxScoreB = 1.0;
 
 		int round = 0;
-		while ((minScoreA + minScoreB <= bestScore)) {
+		while (round < voteAccuracy) {
 
 			boolean voteA = agA.voteScoreBinary(proposal);
 			if (voteA) {
@@ -208,36 +247,13 @@ public class Verhandlung {
 			} else {
 				maxScoreB -= (maxScoreB - minScoreB) / 2;
 			}
-
-			if (((maxScoreA + maxScoreB) < bestScore) && (round >= voteAccuracy)) { // break only when accuracy is
-																					// achieved
-				break;
-			}
 			round += 1;
 
 			scores = new double[] { minScoreA, maxScoreA, minScoreB, maxScoreB };
-			ScoredContract scoredContract = new ScoredContract(proposal, scores);
-			if (logging)
-				logRound(logFile, round, scoredContract);
 
 		}
 
 		return scores;
-	}
-
-	public static void printNewBest(int round, Agent agA, Agent agB, int[] contract, double[] scores) {
-		System.out.println("NEW BEST CONTRACT IN ROUND " + round);
-		System.out.println("ACTUAL SCORES    | A: " + String.format("%.6f", agA.getScore(contract)) + " | B: "
-				+ String.format("%.6f", agB.getScore(contract)));
-		System.out.println(
-				"PREDICTED SCORES | A: [ " + String.format("%.4f", scores[0]) + " > " + String.format("%.4f", scores[1])
-						+ " ]" +
-						" B: [ " + String.format("%.4f", scores[2]) + " > " + String.format("%.4f", scores[3]) + " ]");
-		System.out.println("BEST SCORE       | " + String.format("%.6f", scores[1] + scores[3]));
-		int utilA = agA.getUtility(contract);
-		int utilB = agB.getUtility(contract);
-		System.out.println("UTILITY          | " + utilA + " + " + utilB + " = " + (utilA + utilB));
-		System.out.println();
 	}
 
 	public static void writeString(String logFile, String text) {
@@ -389,8 +405,8 @@ public class Verhandlung {
 		i3 = 2;
 	}
 
-	public static boolean isParetoEfficient(List<UtilContract> paretoElements, UtilContract newElement) {
-        for (UtilContract element : paretoElements) {
+	public static boolean isParetoEfficientUtil(UtilContract newElement) {
+        for (UtilContract element : utilHistory) {
             if (newElement.getUtilA() >= element.getUtilA() && newElement.getUtilB() >= element.getUtilB()) {
                 return false; 
             }
@@ -398,8 +414,8 @@ public class Verhandlung {
         return true;
     }
 
-	public static boolean isParetoEfficientOrSame(List<UtilContract> paretoElements, UtilContract newElement) {
-        for (UtilContract element : paretoElements) {
+	public static boolean isParetoEfficientOrSameUtil(UtilContract newElement) {
+        for (UtilContract element : utilHistory) {
             if (newElement.getUtilA() > element.getUtilA() && newElement.getUtilB() > element.getUtilB()) {
                 return false; 
             }
@@ -407,14 +423,51 @@ public class Verhandlung {
         return true;
     }
 
-	public static List<UtilContract> removeNonPareto(List<UtilContract> paretoElements) {
+	public static List<UtilContract> removeNonParetoUtil() {
         List<UtilContract> newParetoElements = new ArrayList<>();
 
-        for (UtilContract element : paretoElements) {
+        for (UtilContract element : utilHistory) {
             boolean isPareto = true;
-            for (UtilContract otherElement : paretoElements) {
+            for (UtilContract otherElement : utilHistory) {
 				if (element == otherElement) continue;
                 if (element.getUtilA() >= otherElement.getUtilA() && element.getUtilB() >= otherElement.getUtilB()) {
+                    isPareto = false;
+                    break;
+                }
+            }
+            if (isPareto) {
+                newParetoElements.add(element);
+            }
+        }
+        return newParetoElements;
+    }
+
+	public static boolean isParetoEfficientScore(ScoreContract newElement) {
+        for (ScoreContract element : scoreHistory) {
+            if (newElement.getScoreA() >= element.getScoreA() && newElement.getScoreB() >= element.getScoreB()) {
+                return false; 
+            }
+        }
+        return true;
+    }
+
+	public static boolean isParetoEfficientOrSameScore(ScoreContract newElement) {
+        for (ScoreContract element : scoreHistory) {
+            if (newElement.getScoreA() > element.getScoreA() && newElement.getScoreB() > element.getScoreB()) {
+                return false; 
+            }
+        }
+        return true;
+    }
+
+	public static List<ScoreContract> removeNonParetoScore() {
+        List<ScoreContract> newParetoElements = new ArrayList<>();
+
+        for (ScoreContract element : scoreHistory) {
+            boolean isPareto = true;
+            for (ScoreContract otherElement : scoreHistory) {
+				if (element == otherElement) continue;
+                if (element.getScoreA() >= otherElement.getScoreA() && element.getScoreB() >= otherElement.getScoreB()) {
                     isPareto = false;
                     break;
                 }
@@ -437,9 +490,8 @@ public class Verhandlung {
                 if (parts.length == 5) { // Ensure correct format
                     int utilA = Integer.parseInt(parts[0]);
                     int utilB = Integer.parseInt(parts[1]);
-                    int utilSum = Integer.parseInt(parts[2]);
                     int[] contract = getArrayFromString(parts[3]);
-                    contractList.add(new UtilContract(utilA, utilB, utilSum, contract, 1)); // Set explored to 1
+                    contractList.add(new UtilContract(utilA, utilB, contract, 1)); // Set explored to 1
                 } else {
                     System.out.println("Invalid line: " + line);
                 }
