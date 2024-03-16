@@ -10,10 +10,10 @@ import java.util.List;
 
 public class Verhandlung {
 
-	private static boolean useScoring = true;
+	private static boolean useScoring = false;
 
 	private static boolean logging = false;
-	private static int numberOfRounds = 10;
+	private static int numberOfRounds = 1000;
 
 	// --- scoring parameters ---
 	private static int minCost = 1;
@@ -137,7 +137,7 @@ public class Verhandlung {
 				
 			}
 
-			utilHistory.get(utilHistory.indexOf(utilContract)).setExplored(utilContract.getExplored() + 1);
+			if (utilHistory.indexOf(utilContract) != -1) utilHistory.get(utilHistory.indexOf(utilContract)).setExplored(utilContract.getExplored() + 1);
 
 		}
 
@@ -204,8 +204,8 @@ public class Verhandlung {
 				if (logging) logExactScores(logFile, agA.getScore(proposal), agB.getScore(proposal));
 				
 			}
-
-			scoreHistory.get(scoreHistory.indexOf(scoreContract)).setExplored(scoreContract.getExplored() + 1);
+			
+			if (scoreHistory.indexOf(scoreContract) != -1) scoreHistory.get(scoreHistory.indexOf(scoreContract)).setExplored(scoreContract.getExplored() + 1);
 
 		}
 
@@ -269,10 +269,6 @@ public class Verhandlung {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-	}
-
-	public static void logRound(String logFile, int round, ScoredContract scoredContract) {
-		writeString(logFile, "ROUND " + round + " : " + scoredContract.getString());
 	}
 
 	public static void logParameters(String logFile, int minCost, int maxCost, int maxRounds, int voteAccuracy) {
@@ -496,8 +492,15 @@ public class Verhandlung {
                     System.out.println("Invalid line: " + line);
                 }
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (IOException e1) {
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
+				writer.write("utilA;utilB;utilSum;contract;pareto");
+				writer.newLine();
+				System.out.println("CSV file created successfully.");
+				loadFromCSV(filePath);
+			} catch (IOException e2) {
+				System.err.println("Error writing to CSV file: " + e2.getMessage());
+			}
         }
 
         return contractList;
